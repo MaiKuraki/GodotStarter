@@ -1,0 +1,7 @@
+[gd_scene format=3 uid="uid://bidjk82bgdyug"]
+
+[ext_resource type="Script" uid="uid://cwjuptb1xcfd2" path="res://addons/CycloneGames.Logging/Runtime/Godot/LoggingRuntimeHost.cs" id="1"]
+
+[node name="CycloneGamesLoggingHost" type="Node" unique_id=757369206]
+process_mode = 3
+script = ExtResource("1")

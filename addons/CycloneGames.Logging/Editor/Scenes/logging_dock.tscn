@@ -1,0 +1,9 @@
+[gd_scene format=3 uid="uid://dhymk5uv5kmi5"]
+
+[ext_resource type="Script" uid="uid://bwdqneasrcl02" path="res://addons/CycloneGames.Logging/Editor/LoggingDock.cs" id="1"]
+
+[node name="LoggingDock" type="VBoxContainer" unique_id=954586347]
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 4
+script = ExtResource("1")

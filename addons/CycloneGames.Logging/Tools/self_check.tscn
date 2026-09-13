@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://cctw1fptsaihv"]
+
+[ext_resource type="Script" uid="uid://itcekgw3t2pw" path="res://addons/CycloneGames.Logging/Runtime/Godot/Diagnostics/LoggingSelfCheckRunner.cs" id="1"]
+
+[node name="LoggingSelfCheckRunner" type="Node" unique_id=1605358365]
+script = ExtResource("1")
