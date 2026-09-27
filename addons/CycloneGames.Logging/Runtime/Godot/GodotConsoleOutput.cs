@@ -16,50 +16,10 @@ public enum LogOutputMode : byte
     /// <b>This is the default.</b>
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// <b>Why nothing goes to stderr, not even <c>Error</c>.</b> Godot installs
-    /// <c>EditorLog::_error_handler</c> as the engine's global error handler, and it maps
-    /// <i>everything</i> that arrives through it — <c>printerr</c>, <c>print_error</c>,
-    /// <c>GD.PrintErr</c> and <c>push_error</c> alike — to <c>MSG_TYPE_ERROR</c>. The editor renders
-    /// such a line with the error icon, a bold <c>ERROR:</c> prefix, and a count in the Errors tab.
-    /// There is therefore no neutral stderr in Godot: writing to it <i>is</i> reporting an error. A
-    /// revision of this mode sent <c>Warning</c> and above to <c>GD.PrintErr</c>, claimed it kept the
-    /// Errors tab clean, and did the opposite in the editor — the one place that mattered.
-    /// </para>
-    /// <para>
-    /// <b>What that costs.</b> Severity is carried by the record's own tag and nothing else, so a
-    /// process-level capture that wants to separate levels must parse the line rather than split on the
-    /// stream. That is the price of leaving the error surface alone, and every line is self-describing,
-    /// so it is a price that can be paid.
-    /// </para>
-    /// <para>
-    /// <b>Why this is the default and not <see cref="EngineDiagnostics"/>.</b> A record's
-    /// <c>Severity</c> is a <i>domain</i> judgement — how much this event matters to the game — while
-    /// Godot's error surface is an <i>engine diagnosis</i> primitive meaning the program misused
-    /// something. Mapping one onto the other one-to-one conflates them, and the cost is concrete: a game
-    /// logs <c>Warning</c> for "handshake retry exhausted" and <c>Error</c> for "peer disconnected" as
-    /// ordinary operation, and every one of those would land in the Errors tab and in a CI error count.
-    /// That tab is the primary tool for finding real engine and misuse defects, so filling it with
-    /// legitimate business events destroys its value — and each record also drags nine frames of this
-    /// addon's own call stack into every console and log capture.
-    /// </para>
-    /// <para>
-    /// <b>No special case for <c>Fatal</c>.</b> A revision of this mode routed <c>Fatal</c> to
-    /// <c>PushError</c> in both modes, on the argument that an unrecoverable event must be impossible to
-    /// miss. It was removed for three reasons. The library does not get to impose "Fatal means the
-    /// process is dying" on a project's severity taxonomy — <c>Fatal</c> is the highest level, not a
-    /// contractual statement about the process. The Unity package maps <c>Error</c> and <c>Fatal</c> to
-    /// the same <c>LogType.Error</c>, so a special case here would have broken parity rather than
-    /// improved on it. And a default whose whole purpose is a predictable, unmarked console should not
-    /// carry an exception that marks it. A project that wants Fatal to reach a crash path should do
-    /// that in a sink or select <see cref="EngineDiagnostics"/>, both of which state the intent
-    /// explicitly.
-    /// </para>
-    /// <para>
-    /// Use <see cref="EngineDiagnostics"/> when the engine's error surface <i>is</i> the thing you are
-    /// validating — a smoke test or a soak run whose pass/fail is "no engine errors" — or when you
-    /// deliberately want <c>Error</c> and above visible to the engine and to CI.
-    /// </para>
+    /// Godot routes printerr, GD.PrintErr and push_error through EditorLog::_error_handler, which maps all
+    /// of them to MSG_TYPE_ERROR. stderr is an engine error report, not a neutral stream, so every level
+    /// uses GD.Print. Coloured levels use print_rich: BBCode renders in the Output panel while staying on
+    /// the standard message type, leaving the error and warning counters untouched.
     /// </remarks>
     StreamOnly = 0,
 
@@ -213,26 +173,11 @@ internal static class GodotConsoleOutput
     /// is listening.
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// <b>Why every level uses the standard output stream, including <c>Error</c>.</b> Godot registers
-    /// <c>EditorLog::_error_handler</c> as the engine's global error handler, and that handler maps
-    /// everything arriving through it to <c>MSG_TYPE_ERROR</c> — <c>printerr</c>, <c>print_error</c>,
-    /// <c>GD.PrintErr</c> and <c>push_error</c> alike. The editor renders such a line with the error icon,
-    /// a bold <c>ERROR:</c> prefix, and a count in the Errors tab. There is therefore no neutral stderr in
-    /// Godot: writing to it <i>is</i> reporting an error, so "put the warning on stderr but do not report
-    /// it as an error" is not expressible. An earlier revision of this mode tried exactly that, described
-    /// it as keeping the Errors tab clean, and did the opposite in the editor — the one place it mattered.
-    /// </para>
-    /// <para>
-    /// <b>Why <c>print_rich</c> rather than <c>push_warning</c> / <c>push_error</c>.</b> Those are the only
-    /// way to get Godot's own yellow and red, and they come as a package with the error and warning
-    /// counters plus a C# backtrace that points at this file rather than the call site. <c>print_rich</c>
-    /// renders BBCode in the Output panel — the same visual result — while staying on the standard
-    /// message type, so counters and backtraces stay untouched. That is what makes "coloured like native,
-    /// inert like a plain print" possible at all; Godot offers no third diagnostic channel, and its output
-    /// surface has only two levels (warning and error), so there is no native Fatal to reach for.
-    /// </para>
-    /// </remarks>
+    /// Godot routes printerr, GD.PrintErr and push_error through EditorLog::_error_handler, which maps
+    /// all of them to MSG_TYPE_ERROR: stderr is an engine error report, not a neutral stream. Every level
+    /// therefore uses GD.Print. Coloured levels use print_rich, which renders BBCode in the Output panel
+    /// while staying on the standard message type and leaving the error/warning counters untouched.
+    /// </remarks>    /// </remarks>
     private static void WriteStreamLine(LogSeverity severity, string line)
     {
         int index = (int)severity;

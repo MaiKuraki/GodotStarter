@@ -8,23 +8,10 @@ namespace CycloneGames.IO.Godot
     /// (for <c>FileAccess</c>) or an OS path (for <c>SystemFileStore</c> and <c>System.IO</c>).
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// <b>The trap this class exists to make loud.</b> On Godot, <c>res://</c> and <c>user://</c> look
-    /// interchangeable in the editor and are not interchangeable in an exported build: <c>user://</c> is a
-    /// real directory, while <c>res://</c> content is inside the PCK and has no OS path. Worse, the editor
-    /// is happy to hand out a path for <c>res://</c> — <c>ProjectSettings.GlobalizePath("res://x")</c>
-    /// returns a working OS path while running from the editor, and nothing at all once exported. That is
-    /// the classic "works in the editor, breaks in the build" failure. So this class does not offer a
-    /// <c>res://</c> OS path even when one technically exists; it reports
-    /// <see cref="GodotFileUriError.NotOsPathBacked"/> and lets the caller choose the
-    /// <c>FileAccess</c> route instead.
-    /// </para>
-    /// <para>
-    /// <b>What is deliberately absent.</b> The Unity counterpart built URIs for <c>UnityWebRequest</c>,
-    /// including the <c>jar:file://</c> form Android requires for archived StreamingAssets. Godot's
-    /// <c>HTTPRequest</c> accepts an ordinary URL and <c>FileAccess</c> handles <c>res://</c> natively, so
-    /// there is no URI to construct. Porting that layer would have produced code with nothing to do.
-    /// </para>
+    /// res:// has no OS path in an exported build: the content lives in the PCK. GlobalizePath happens to
+    /// return a usable path in the editor, which is why this must fail loudly instead of returning a path
+    /// that only works while developing. user:// resolves through OS.GetUserDataDir and is fully backed by
+    /// the filesystem, so SystemFileStore applies there.
     /// </remarks>
     public static class GodotFilePaths
     {

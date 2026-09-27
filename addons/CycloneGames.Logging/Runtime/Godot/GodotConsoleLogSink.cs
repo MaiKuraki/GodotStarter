@@ -172,20 +172,8 @@ public sealed class GodotConsoleLogSink : ILogSink, IFlushableLogSink, IIdempote
         StringBuilder builder = StringBuilderPool.Get();
         try
         {
-            // Severity first, matching the kernel's ConsoleLogSink byte for byte in shape.
-            //
-            // This is not decoration. In EngineDiagnostics mode Godot supplies the prefix itself
-            // ("WARNING:" / "ERROR:"), so leaving it out here was invisible — until the default became
-            // StreamOnly, where GD.Print adds nothing and a Warning became indistinguishable from an
-            // Info once the log was redirected to a file. That is precisely the use case StreamOnly
-            // exists for, so relying on the engine to convey severity was a latent defect the mode change
-            // exposed. Encoding it here also means a project shipping both a dedicated server and a Godot
-            // client reads one log format instead of two.
-            //
-            // In EngineDiagnostics a Warning therefore renders as "WARNING: WARNING: …" — Godot's own
-            // prefix plus ours. The duplication is deliberate and only appears in that mode: the
-            // editor's prefix states what the engine classified the line as, ours states which level the
-            // record actually carries, and in EngineDiagnostics those two are different claims.
+            // The severity tag is part of the format: under StreamOnly, GD.Print adds nothing, so
+            // without it a Warning is indistinguishable from an Info in a captured log.
             string severityName = LogSeverityNames.Get(logEvent.Severity);
             builder.Append(severityName);
             builder.Append(": ");

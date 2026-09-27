@@ -376,7 +376,7 @@ namespace CycloneGames.Hash.SelfCheck
             bool manual64 = Fnv1a64.ComputeUtf16Ordinal("A\u4F60") == expected64;
 
             // For ASCII the ordinal fold coincides with the byte-wise hash. It must NOT coincide for anything
-            // above 0xFF, which is exactly the trap this contract creates for cross-language producers.
+            // above 0xFF the two diverge, which is why cross-language text must be encoded first.
             bool asciiAgrees = Fnv1a32.ComputeUtf16Ordinal("abc") == Fnv1a32.Compute(Utf8("abc"));
             uint ordinalNonAscii = Fnv1a32.ComputeUtf16Ordinal("\u4F60");
             uint utf16LeBytes = Fnv1a32.Compute(new byte[] { 0x60, 0x4F });

@@ -105,10 +105,8 @@ public static class LoggingProjectSettings
     // There is deliberately no property-usage constant here. Godot 4.7 rejects a "usage" key in the
     // dictionary handed to ProjectSettings.AddPropertyInfo — it reports
     //   WARNING: "usage" is not supported in add_property_info().
-    // — and reads only name / type / hint / hint_string. An earlier revision passed a numerically
-    // spelled PROPERTY_USAGE_DEFAULT in the belief that a managed enum name might have moved between
-    // releases; the value never took effect and the warning was the only symptom. Godot applies its own
-    // usage flags, so the key is simply gone.
+      // — and reads only name / type / hint / hint_string. Godot applies its own usage
+      // flags, so the key is simply gone.
 
     private static readonly string[] ExecutionModeNames = { "Automatic", "Threaded", "SingleThreaded" };
     private static readonly string[] OverflowPolicyNames = { "DropNewest", "DropOldest", "Block" };
@@ -285,14 +283,6 @@ public static class LoggingProjectSettings
     /// <c>ERROR: Condition "!props.has(pinfo.name)" is true.</c> and the setting never appears in the
     /// inspector at all.</item>
     /// </list>
-    /// <para>
-    /// An earlier revision called <c>AddPropertyInfo</c> first and <c>SetSetting</c> never, on the
-    /// mistaken belief that <c>SetInitialValue</c> creates a missing setting. The entire
-    /// <c>cyclone_games_logging/*</c> section was therefore absent from Project Settings while the
-    /// addon otherwise looked healthy — the same "partial function hiding a missing piece" failure
-    /// mode the plugin shim now escalates an error for. Compilation cannot catch either symptom; only
-    /// running the editor shows it.
-    /// </para>
     /// <para>
     /// <b>Idempotency.</b> The <c>HasSetting</c> guard is what makes a plugin reload safe: a value the
     /// user already edited is never overwritten. <c>SetInitialValue</c> is still called every time,
