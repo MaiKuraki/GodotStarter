@@ -492,6 +492,7 @@ public static class LoggingBootstrap
             options.MaxQueuedCharacters = settings.HandoffMaxQueuedCharacters;
             options.OverflowPolicy = settings.HandoffOverflowPolicy;
             options.OutputMode = settings.OutputMode;
+            options.PadSeverity = settings.PadSeverity;
             options.PumpItemsPerFrame = settings.PumpItemsPerFrame;
             options.PumpBudgetMs = settings.PumpBudgetMs;
         }

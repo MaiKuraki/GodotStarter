@@ -36,6 +36,7 @@ public sealed class GodotConsoleLogSink : ILogSink, IFlushableLogSink, IIdempote
 {
     private readonly int _adapterGeneration;
     private readonly LogOutputMode _outputMode;
+    private readonly bool _padSeverity;
     private int _disposed;
 
     /// <summary>
@@ -62,6 +63,7 @@ public sealed class GodotConsoleLogSink : ILogSink, IFlushableLogSink, IIdempote
         }
 
         _outputMode = options != null ? options.OutputMode : LogOutputMode.StreamOnly;
+        _padSeverity = options != null && options.PadSeverity;
         _adapterGeneration = LoggingRuntimeHost.RegisterAdapter();
 
         try
@@ -112,7 +114,7 @@ public sealed class GodotConsoleLogSink : ILogSink, IFlushableLogSink, IIdempote
         bool reservationOwned = true;
         try
         {
-            formatted = FormatMessage(logEvent);
+            formatted = FormatMessage(logEvent, _padSeverity);
             reservationOwned = false;
 #if TOOLS
             LoggingRuntimeHost.Commit(logEvent.Severity, formatted, reservation, logEvent.FilePath, logEvent.LineNumber);
@@ -138,7 +140,34 @@ public sealed class GodotConsoleLogSink : ILogSink, IFlushableLogSink, IIdempote
     /// deliberately the same shape the Unity package emits, with <c>res://…:line</c> in place of
     /// Unity's hyperlink markup, because Godot's Output panel links that form natively.
     /// </remarks>
-    internal static string FormatMessage(LogEvent logEvent)
+    /// <summary>
+    /// Width of the severity column when <see cref="GodotConsoleLogSinkOptions.PadSeverity"/> is
+    /// enabled: the longest emittable severity name plus the <c>": "</c> separator.
+    /// </summary>
+    /// <remarks>
+    /// Computed rather than written as a literal, so it cannot silently disagree with
+    /// <see cref="LogSeverityNames"/> if a name ever changes. <c>None</c> is deliberately excluded
+    /// — it is never emitted, so letting it widen the column would pad every real line for a level
+    /// that can never appear.
+    /// </remarks>
+    private static readonly int SeverityColumnWidth = ComputeSeverityColumnWidth();
+
+    private static int ComputeSeverityColumnWidth()
+    {
+        int width = 0;
+        for (int level = (int)LogSeverity.Trace; level <= (int)LogSeverity.Fatal; level++)
+        {
+            int length = LogSeverityNames.Get((LogSeverity)level).Length;
+            if (length > width)
+            {
+                width = length;
+            }
+        }
+
+        return width + 2;   // the ": " that follows the name
+    }
+
+    internal static string FormatMessage(LogEvent logEvent, bool padSeverity = false)
     {
         StringBuilder builder = StringBuilderPool.Get();
         try
@@ -157,8 +186,22 @@ public sealed class GodotConsoleLogSink : ILogSink, IFlushableLogSink, IIdempote
             // prefix plus ours. The duplication is deliberate and only appears in that mode: the
             // editor's prefix states what the engine classified the line as, ours states which level the
             // record actually carries, and in EngineDiagnostics those two are different claims.
-            builder.Append(LogSeverityNames.Get(logEvent.Severity));
+            string severityName = LogSeverityNames.Get(logEvent.Severity);
+            builder.Append(severityName);
             builder.Append(": ");
+
+            // Padding goes AFTER the colon, not before it. Both placements produce the same
+            // alignment, but this one keeps "INFO:" contiguous so a parser anchored on the severity
+            // prefix keeps working; padding before the colon would turn "INFO: " into "INFO   : "
+            // and break it, for no visual gain.
+            if (padSeverity)
+            {
+                int padding = SeverityColumnWidth - severityName.Length - 2;
+                if (padding > 0)
+                {
+                    builder.Append(' ', padding);
+                }
+            }
 
             if (!string.IsNullOrEmpty(logEvent.Category))
             {

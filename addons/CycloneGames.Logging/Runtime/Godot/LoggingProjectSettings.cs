@@ -90,6 +90,7 @@ public static class LoggingProjectSettings
     public const string KeyCategoryFilter = Section + "/filtering/category_filter";
 
     public const string KeyOutputMode = Section + "/output/mode";
+    public const string KeyPadSeverity = Section + "/output/pad_severity";
     public const string KeyPumpItemsPerFrame = Section + "/output/pump_items_per_frame";
     public const string KeyPumpBudgetMs = Section + "/output/pump_budget_ms";
     public const string KeyPipelinePumpBudgetMs = Section + "/output/pipeline_pump_budget_ms";
@@ -186,6 +187,7 @@ public static class LoggingProjectSettings
             AddInt(KeyCategoryFilter, (int)defaults.CategoryFilter, CategoryFilterNames);
 
             AddInt(KeyOutputMode, (int)defaults.OutputMode, OutputModeNames);
+            AddBool(KeyPadSeverity, defaults.PadSeverity);
             AddInt(KeyPumpItemsPerFrame, defaults.PumpItemsPerFrame);
             AddFloat(KeyPumpBudgetMs, defaults.PumpBudgetMs);
             AddFloat(KeyPipelinePumpBudgetMs, defaults.PipelinePumpBudgetMs);
@@ -252,6 +254,7 @@ public static class LoggingProjectSettings
         settings.CategoryFilter = (LogCategoryFilterMode)GetInt(KeyCategoryFilter, (int)fallback.CategoryFilter);
 
         settings.OutputMode = (LogOutputMode)GetInt(KeyOutputMode, (int)fallback.OutputMode);
+        settings.PadSeverity = GetBool(KeyPadSeverity, fallback.PadSeverity);
         settings.PumpItemsPerFrame = GetInt(KeyPumpItemsPerFrame, fallback.PumpItemsPerFrame);
         settings.PumpBudgetMs = GetFloat(KeyPumpBudgetMs, fallback.PumpBudgetMs);
         settings.PipelinePumpBudgetMs = GetFloat(KeyPipelinePumpBudgetMs, fallback.PipelinePumpBudgetMs);

@@ -144,6 +144,15 @@ public partial class LoggingSettings : Resource
     [Export] public LogOutputMode OutputMode { get; set; } = LogOutputMode.StreamOnly;
 
     /// <summary>
+    /// Pads the severity tag to a fixed column so the <c>[Category]</c> column lines up across
+    /// levels. Off by default: the line is a documented, parsed format rather than decoration, and
+    /// padding aligns the category column but not the message column, because category names are
+    /// caller-defined and unbounded. See <see cref="GodotConsoleLogSinkOptions.PadSeverity"/> for the
+    /// full argument, including why the padding is placed after the colon.
+    /// </summary>
+    [Export] public bool PadSeverity { get; set; } = false;
+
+    /// <summary>
     /// Per-frame item budget for the main-thread handoff pump. One frame never pays an
     /// unbounded drain, which is what keeps a burst from turning into a frame-time spike.
     /// </summary>
