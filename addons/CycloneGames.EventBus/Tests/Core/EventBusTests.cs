@@ -348,6 +348,134 @@ namespace CycloneGames.EventBus.Tests
         }
 
         [Test]
+        public void HandlerDisposingItsOwnSubscription_KeepsEverySurvivorDelivered()
+        {
+            // A handler that releases its OWN handle mid-round drives the O(1) slot path, which marks
+            // the slot dead while the round is still iterating. The invariant that matters is that no
+            // survivor is skipped: the loop must observe every slot it snapshotted on entry.
+            //
+            // The handler delegate is rooted in a local on purpose: an unrooted delegate can be
+            // collected while its slot is still live, which clears the slot through the finalizer and
+            // would make this test observe collection timing rather than the bus.
+            var bus = new EventBus<ScoreChanged>(null, 16);
+            var order = new List<int>();
+
+            IEventSubscription first = null;
+            int firstCalls = 0;
+            Action<ScoreChanged> firstHandler = _ =>
+            {
+                firstCalls++;
+                first.Dispose();
+            };
+
+            // Slots are [witness0, first, witness1, witness2]. Every witness is above or below the
+            // self-released slot, so a compaction that ran during the loop would skip or duplicate
+            // one of them.
+            bus.Subscribe(_ => order.Add(0));
+            first = bus.Subscribe(firstHandler);
+            bus.Subscribe(_ => order.Add(1));
+            bus.Subscribe(_ => order.Add(2));
+
+            bus.Publish(new ScoreChanged());
+
+            CollectionAssert.AreEqual(new[] { 0, 1, 2 }, order);
+            Assert.AreEqual(1, firstCalls, "A self-released handler must not be re-entered.");
+            Assert.IsTrue(first.IsReleased);
+            Assert.AreEqual(3, bus.SubscriptionCount);
+            Assert.AreEqual(0, bus.TombstoneCount, "Compaction reclaims the tombstone on round exit.");
+            Assert.AreEqual(0, bus.DispatchDepth);
+
+            // The survivors must address the right slots after compaction moved them.
+            bus.Publish(new ScoreChanged());
+            CollectionAssert.AreEqual(new[] { 0, 1, 2, 0, 1, 2 }, order);
+        }
+
+        [Test]
+        public void HandlerDisposingOwnSubscriptionThenRepublishing_DeliversEachRoundOnce()
+        {
+            // Self-release followed by a same-type re-publish from inside the handler. The nested
+            // round runs while the outer round is suspended at its current index, so both rounds must
+            // deliver to exactly the slots that were live when each one started.
+            var bus = new EventBus<ScoreChanged>(null, 16);
+            var order = new List<int>();
+
+            IEventSubscription first = null;
+            int firstCalls = 0;
+            int depthAtSelfRelease = -1;
+            int tombstonesDuringRound = -1;
+            Action<ScoreChanged> firstHandler = _ =>
+            {
+                firstCalls++;
+                first.Dispose();
+                depthAtSelfRelease = bus.DispatchDepth;
+
+                // The dead slot is not reclaimed while any round is in flight.
+                tombstonesDuringRound = bus.TombstoneCount;
+                bus.Publish(new ScoreChanged());
+            };
+
+            bus.Subscribe(_ => order.Add(0));
+            first = bus.Subscribe(firstHandler);
+            bus.Subscribe(_ => order.Add(1));
+
+            bus.Publish(new ScoreChanged());
+
+            // Outer round: witness0 delivers, then `first` releases itself and starts the nested
+            // round. The outer loop is suspended at that index, so the nested round delivers to
+            // witness0 and witness1 before the outer round resumes and delivers to witness1. The
+            // self-released handler is never re-entered, so firstCalls stays at one.
+            CollectionAssert.AreEqual(new[] { 0, 0, 1, 1 }, order);
+            Assert.AreEqual(1, firstCalls, "A self-released handler must not be re-entered by its own publish.");
+            Assert.AreEqual(1, depthAtSelfRelease, "The handler's own frame is one deep.");
+            Assert.AreEqual(1, tombstonesDuringRound, "The tombstone must survive until every round exits.");
+
+            Assert.AreEqual(0, bus.TombstoneCount, "Compaction runs once, after the outermost round.");
+            Assert.AreEqual(2, bus.SubscriptionCount);
+            Assert.AreEqual(0, bus.DispatchDepth);
+        }
+
+        [Test]
+        public void HandlerDisposingOwnSubscription_DoesNotShiftSlotsUnderTheActiveLoop()
+        {
+            // Non-vacuity anchor: the observable consequence of compaction running mid-loop is that a
+            // survivor sees the counters already reshaped underneath it. A handler placed above the
+            // self-released slot must therefore observe the tombstone still standing.
+            var bus = new EventBus<ScoreChanged>(null, 32);
+            var noop = new Action<ScoreChanged>(_ => { });
+            for (int index = 0; index < 6; index++)
+            {
+                bus.Subscribe(noop);
+            }
+
+            IEventSubscription self = null;
+            int selfCalls = 0;
+            self = bus.Subscribe(_ =>
+            {
+                selfCalls++;
+                self.Dispose();
+            });
+
+            int witnessCalls = 0;
+            int tombstonesSeenByWitness = -1;
+            bus.Subscribe(_ =>
+            {
+                witnessCalls++;
+                tombstonesSeenByWitness = bus.TombstoneCount;
+            });
+
+            int capacityBefore = bus.Capacity;
+            bus.Publish(new ScoreChanged());
+
+            Assert.AreEqual(1, selfCalls);
+            Assert.AreEqual(1, witnessCalls, "A slot above the self-released one must still be visited.");
+            Assert.AreEqual(1, tombstonesSeenByWitness, "Compaction must not run while a round is live.");
+            Assert.AreEqual(0, bus.TombstoneCount, "The round exit reclaims the tombstone.");
+            Assert.AreEqual(0, bus.DispatchDepth);
+            Assert.AreEqual(7, bus.SubscriptionCount);
+            Assert.AreEqual(capacityBefore, bus.Capacity, "Capacity is retained, never shrunk.");
+        }
+
+        [Test]
         public void Compact_DuringDispatch_Throws()
         {
             var bus = new EventBus<ScoreChanged>();
